@@ -1,0 +1,77 @@
+#script huong dan tao token tren testnet Cardano
+#1.khai bao bien
+export CARDANO_NODE_SOCKET_PATH=/opt/cardano/cnodetn/sockets/node0.socket
+testnet="--testnet-magic 1097911063"
+tokenname1=$(echo -n "TVN" | xxd -ps | tr -d '\n')
+tokenamount="1000000000"
+output="0"
+
+#2. Check node status
+cardano-cli query tip $testnet
+
+#3. wallet creation
+mkdir tokens
+cd tokens/
+cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
+cardano-cli address build --payment-verification-key-file payment.vkey --out-file payment.addr $testnet
+address=$(cat payment.addr)
+cardano-cli query protocol-parameters $testnet --out-file protocol.json
+
+#4.Generate the policy
+mkdir policy
+cardano-cli address key-gen \
+    --verification-key-file policy/policy.vkey \
+    --signing-key-file policy/policy.skey
+
+touch policy/policy.script && echo "" > policy/policy.script
+
+echo "{" >> policy/policy.script 
+echo "  \"keyHash\": \"$(cardano-cli address key-hash --payment-verification-key-file policy/policy.vkey)\"," >> policy/policy.script 
+echo "  \"type\": \"sig\"" >> policy/policy.script 
+echo "}" >> policy/policy.script
+
+
+#5.Asset minting
+https://developers.cardano.org/docs/integrate-cardano/testnet-faucet/
+
+cardano-cli transaction policyid --script-file ./policy/policy.script > policy/policyID
+cardano-cli query utxo --address $address $testnet
+
+
+txhash="fe4867af25555b7cd4e5e93c9ec0f5ff4bd7694dcb02f45ec5f77501c959ff64"
+txix="0"
+funds="1000000000"
+policyid=$(cat policy/policyID)
+fee="300000"
+
+
+cardano-cli transaction build-raw \
+ --fee $fee \
+ --tx-in $txhash#$txix \
+ --tx-out $address+$output+"$tokenamount $policyid.$tokenname1" \
+ --mint="$tokenamount $policyid.$tokenname1" \
+ --minting-script-file policy/policy.script \
+ --out-file matx.raw
+ 
+fee=$(cardano-cli transaction calculate-min-fee --tx-body-file matx.raw --tx-in-count 1 --tx-out-count 1 --witness-count 2 $testnet --protocol-params-file protocol.json | cut -d " " -f1)
+output=$(expr $funds - $fee)
+
+cardano-cli transaction build-raw \
+--fee $fee  \
+--tx-in $txhash#$txix  \
+--tx-out $address+$output+"$tokenamount $policyid.$tokenname1" \
+--mint="$tokenamount $policyid.$tokenname1" \
+--minting-script-file policy/policy.script \
+--out-file matx.raw
+
+cardano-cli transaction sign  \
+--signing-key-file payment.skey  \
+--signing-key-file policy/policy.skey  \
+$testnet --tx-body-file matx.raw  \
+--out-file matx.signed
+
+cardano-cli transaction submit --tx-file matx.signed $testnet
+
+cardano-cli query utxo --address $address $testnet
+
+

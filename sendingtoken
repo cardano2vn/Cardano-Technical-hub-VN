@@ -1,0 +1,58 @@
+#https://github.com/input-output-hk/cardano-node/blob/master/doc/stake-pool-operations/simple_transaction.md
+#Sending token to a wallet
+
+#1.khai bao bien
+cd /home/tienna/tokens
+export CARDANO_NODE_SOCKET_PATH=/opt/cardano/cnodetn/sockets/node0.socket
+testnet="--testnet-magic 1097911063"
+tokenname1=$(echo -n "HAN" | xxd -ps | tr -d '\n')
+tokenamount="1000000000"
+output="0"
+sender=$(cat payment.addr)
+
+cardano-cli query utxo --address $sender $testnet
+policyid=$(cat policy/policyID)
+
+
+
+# khai bao dia chi vi, so luong token chuyen di
+fee="0"
+receiver="addr_test1qzz2h94l3v2pfm3yltdz5s4zg4d4cregymef0gr85jgm6v8w6spzv7aqremu69396g0f3gxsya6eqp7j00cuc480z79sjae7t3"
+container_ada="2000000"  #container- phai kem theo giao dich
+sending_amount="500000000"  #lovelace
+
+
+
+txhash="06372b79f6dbb83a1e3a387ad2b111064eb5765854e2bbfaf6af30875d055b0f"
+txix="0"
+funds="999818395"
+
+
+
+#Tao Raw transaction looks like
+remain_token=$(expr $tokenamount - $sending_amount)
+
+cardano-cli transaction build-raw  \
+--fee $fee  \
+--tx-in $txhash#$txix  \
+--tx-out $receiver+$container_ada+"$sending_amount $policyid.$tokenname1"  \
+--tx-out $sender+$output+"$remain_token $policyid.$tokenname1"  \
+--out-file rec_matx.raw
+ 
+fee=$(cardano-cli transaction calculate-min-fee --tx-body-file rec_matx.raw --tx-in-count 1 --tx-out-count 2 --witness-count 1 $testnet --protocol-params-file protocol.json | cut -d " " -f1)
+output=$(expr $funds - $fee - $container_ada)
+
+
+
+
+cardano-cli transaction build-raw  \
+--fee $fee  \
+--tx-in $txhash#$txix  \
+--tx-out $receiver+$container_ada+"$sending_amount $policyid.$tokenname1"  \
+--tx-out $sender+$output+"$remain_token $policyid.$tokenname1 "  \
+--out-file rec_matx.raw
+
+
+cardano-cli transaction sign --signing-key-file payment.skey $testnet --tx-body-file rec_matx.raw --out-file rec_matx.signed
+cardano-cli transaction submit --tx-file rec_matx.signed $testnet
+

@@ -1,15 +1,15 @@
-#script huong dan tao token tren testnet Cardano
-#1.khai bao bien
+
+#1.Khai báo biến với tesnet và đặt tên token
 export CARDANO_NODE_SOCKET_PATH=/opt/cardano/cnodetn/sockets/node0.socket
 testnet="--testnet-magic 1097911063"
-tokenname1=$(echo -n "TVN" | xxd -ps | tr -d '\n')
+tokenname1=$(echo -n "HAN" | xxd -ps | tr -d '\n')
 tokenamount="1000000000"
 output="0"
 
-#2. Check node status
+#2. Kiểm tra trạng thái đồng bộ của mạng testnet
 cardano-cli query tip $testnet
 
-#3. wallet creation
+#3. Tạo ví,Private key của ví, lưu thông số giao thức vào file protocol.json
 mkdir tokens
 cd tokens/
 cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
@@ -17,7 +17,7 @@ cardano-cli address build --payment-verification-key-file payment.vkey --out-fil
 address=$(cat payment.addr)
 cardano-cli query protocol-parameters $testnet --out-file protocol.json
 
-#4.Generate the policy
+#4.Tạo Policy quản lý token
 mkdir policy
 cardano-cli address key-gen \
     --verification-key-file policy/policy.vkey \
@@ -31,14 +31,17 @@ echo "  \"type\": \"sig\"" >> policy/policy.script
 echo "}" >> policy/policy.script
 
 
-#5.Asset minting
+#5.Tạo token 
 https://developers.cardano.org/docs/integrate-cardano/testnet-faucet/
+addr_test1vp742e2xhvnylpec9kye9aqg8duqkjyn9a8rpwhgx0y2jgg0ha7lp
+
+
 
 cardano-cli transaction policyid --script-file ./policy/policy.script > policy/policyID
 cardano-cli query utxo --address $address $testnet
 
 
-txhash="fe4867af25555b7cd4e5e93c9ec0f5ff4bd7694dcb02f45ec5f77501c959ff64"
+txhash="f7f22c8011d2dabf5662541f35ae76ce4d203adf87b9e2504f0450690812efcd"
 txix="0"
 funds="1000000000"
 policyid=$(cat policy/policyID)

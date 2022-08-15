@@ -1,20 +1,20 @@
-#**1-Thiết lập thư mục làm việc**
+ #1-Thiết lập thư mục làm việc
 mkdir nft
 cd nft/
 
-#**2-Cài đăt các tham số**
+#2-Cài đăt các tham số
 realtokenname="Marathon-10km"
 tokenname=$(echo -n $realtokenname | xxd -b -ps -c 80 | tr -d '\n')
 tokenamount="1"
 ipfs_hash="QmaXHpLDWnTKMStoaM7GNh1MX9YED7386T2ArEK15yhhYM"
 
 
-#**3-Tạo  ví , khóa (skey) và địa chỉ ví lưu NFT**
+#3-Tạo  ví , khóa (skey) và địa chỉ ví lưu NFT
 cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
 cardano-cli address build --payment-verification-key-file payment.vkey --out-file payment.addr --mainnet
 address=$(cat payment.addr)
 
-#**4- Chuyển tiền vào ví, tra số dư của ví**
+#4- Chuyển tiền vào ví, tra số dư của ví
 cardano-cli query utxo --address $address --mainnet
 
 #5-Xuất biến protocol cho câu lệnh kế tiếp 
@@ -110,3 +110,8 @@ cardano-cli transaction sign  --mainnet \
 
 #10-submit giao dich trên mainnet
 cardano-cli transaction submit --mainnet --tx-file matx.signed
+
+
+
+
+

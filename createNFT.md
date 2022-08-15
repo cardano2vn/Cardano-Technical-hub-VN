@@ -1,0 +1,112 @@
+#**1-Thiết lập thư mục làm việc**
+mkdir nft
+cd nft/
+
+#**2-Cài đăt các tham số**
+realtokenname="Marathon-10km"
+tokenname=$(echo -n $realtokenname | xxd -b -ps -c 80 | tr -d '\n')
+tokenamount="1"
+ipfs_hash="QmaXHpLDWnTKMStoaM7GNh1MX9YED7386T2ArEK15yhhYM"
+
+
+#**3-Tạo  ví , khóa (skey) và địa chỉ ví lưu NFT**
+cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
+cardano-cli address build --payment-verification-key-file payment.vkey --out-file payment.addr --mainnet
+address=$(cat payment.addr)
+
+#**4- Chuyển tiền vào ví, tra số dư của ví**
+cardano-cli query utxo --address $address --mainnet
+
+#5-Xuất biến protocol cho câu lệnh kế tiếp 
+cardano-cli query protocol-parameters --mainnet --out-file protocol.json
+
+#6-Tạo PolicyID
+mkdir policy
+cardano-cli address key-gen \
+    --verification-key-file policy/policy.vkey \
+    --signing-key-file policy/policy.skey
+
+slotnumber=$(expr $(cardano-cli query tip --mainnet | jq .slot?) + 10000)
+
+echo "{" >> policy/policy.script
+echo "  \"type\": \"all\"," >> policy/policy.script 
+echo "  \"scripts\":" >> policy/policy.script 
+echo "  [" >> policy/policy.script 
+echo "   {" >> policy/policy.script 
+echo "     \"type\": \"before\"," >> policy/policy.script 
+echo "     \"slot\": $slotnumber)" >> policy/policy.script
+echo "   }," >> policy/policy.script 
+echo "   {" >> policy/policy.script
+echo "     \"type\": \"sig\"," >> policy/policy.script 
+echo "     \"keyHash\": \"$(cardano-cli address key-hash --payment-verification-key-file policy/policy.vkey)\"" >> policy/policy.script 
+echo "   }" >> policy/policy.script
+echo "  ]" >> policy/policy.script 
+echo "}" >> policy/policy.script
+
+
+#7-Tạo Metadata cho NFT
+script="policy/policy.script"
+cardano-cli transaction policyid --script-file $script > policy/policyID
+
+echo "{" >> metadata.json
+echo "  \"721\": {" >> metadata.json 
+echo "    \"$(cat policy/policyID)\": {" >> metadata.json 
+echo "      \"$(echo $realtokenname)\": {" >> metadata.json
+echo "        \"description\": \"Đây là Chứng chỉ Marathon Hạ Long của tôi\"," >> metadata.json
+echo "        \"name\": \"Chứng chỉ Halong Marathon\"," >> metadata.json
+echo "        \"id\": \"1\"," >> metadata.json
+echo "        \"image\": \"ipfs://$(echo $ipfs_hash)\"" >> metadata.json
+echo "      }" >> metadata.json
+echo "    }" >> metadata.json 
+echo "  }" >> metadata.json 
+echo "}" >> metadata.json
+
+
+
+#khai báo biến txhash, txid cho đúng thực tế
+txhash="8b947b5d553ce98ed94c1a50e4aed701f95ec3d74376e284c9b2ff48753e1403"
+txix="0"
+policyid=$(cat policy/policyID)
+output=1400000
+
+
+#kiểm tra lại các biến
+
+echo $address
+echo $output
+echo $tokenamount
+echo $policyid
+echo $tokenname
+echo $slotnumber
+echo $script
+
+
+
+
+ 
+
+#8-Soạn giao dịch tạo NFT
+cardano-cli transaction build \
+--mainnet \
+--alonzo-era \
+--tx-in $txhash#$txix \
+--tx-out $address+$output+"$tokenamount $policyid.$tokenname" \
+--change-address $address \
+--mint="$tokenamount $policyid.$tokenname" \
+--minting-script-file $script \
+--metadata-json-file metadata.json  \
+--invalid-hereafter $slotnumber \
+--witness-override 2 \
+--out-file matx.raw
+
+
+
+#9-Ký giao dich tạo NFT
+cardano-cli transaction sign  --mainnet \
+--signing-key-file payment.skey  \
+--signing-key-file policy/policy.skey  \
+--tx-body-file matx.raw  \
+--out-file matx.signed
+
+#10-submit giao dich trên mainnet
+cardano-cli transaction submit --mainnet --tx-file matx.signed

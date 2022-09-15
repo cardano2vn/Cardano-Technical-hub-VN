@@ -1,0 +1,20 @@
+mkdir "$HOME/tmp";cd "$HOME/tmp"
+curl -sS -o prereqs.sh https://raw.githubusercontent.com/cardano-community/guild-operators/master/scripts/cnode-helper-scripts/prereqs.sh
+chmod 755 prereqs.sh
+
+./prereqs.sh
+. "${HOME}/.bashrc"
+
+
+cd ~/git
+git clone https://github.com/input-output-hk/cardano-node
+cd cardano-node
+
+git fetch --tags --all
+git pull
+# Replace tag against checkout if you do not want to build the latest released version
+git checkout $(curl -s https://api.github.com/repos/input-output-hk/cardano-node/releases/latest | jq -r .tag_name)
+
+# Use `-l` argument if you'd like to use system libsodium instead of IOG fork of libsodium while compiling
+$CNODE_HOME/scripts/cabal-build-all.sh
+
